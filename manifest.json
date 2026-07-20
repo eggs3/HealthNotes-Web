@@ -1,0 +1,13 @@
+{
+  "name": "Health Notes",
+  "short_name": "Health Notes",
+  "description": "Personal health record and notes tracker",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#EEF0EA",
+  "theme_color": "#EEF0EA",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
