@@ -440,6 +440,23 @@ const CATEGORIES = [
 ];
 const STORAGE_KEY = 'entries';
 
+// Preset emoji rules. When multiple categories are checked, the first
+// match in this list (top to bottom) wins — Appointment is intentionally
+// last since it's the most generic category.
+const EMOJI_RULES = [
+  {category:'Lab/Test Result', emoji:'🧪'},
+  {category:'Prescription',    emoji:'💊'},
+  {category:'Symptoms',        emoji:'🤒'},
+  {category:'Procedure',       emoji:'🛏️'},
+  {category:'Vaccination',     emoji:'💉'},
+  {category:'Appointment',     emoji:'📅'},
+];
+
+function autoEmojiForCategories(cats){
+  const rule = EMOJI_RULES.find(r => cats.includes(r.category));
+  return rule ? rule.emoji : '';
+}
+
 // Seed data migrated from the user's existing backup, used only if storage is empty.
 const SEED = [
   {id:"s1", emoji:"🧪", title:"STD panel", date:"2026-05-08", categories:["Appointment","Lab/Test Result"], tags:[], providerIcon:"🏢", providerName:"NYC Health", notes:["Negative for: chlamydia, gonorrhea, HIV, syphilis","Results shared via patient portal"], related:["STD panel"]},
@@ -741,6 +758,20 @@ function openModal(existing){
     </div>
   `;
   document.body.appendChild(overlay);
+
+  // Auto-emoji: only kicks in for brand-new entries (editing never touches
+  // an existing emoji automatically), and stops as soon as the user types
+  // their own value into the emoji field.
+  let autoEmojiActive = !isEdit;
+  const emojiInput = overlay.querySelector('#f-emoji');
+  emojiInput.addEventListener('input', ()=>{ autoEmojiActive = false; });
+  overlay.querySelectorAll('.chip-check input').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(!autoEmojiActive) return;
+      const cats = [...overlay.querySelectorAll('.chip-check input:checked')].map(i=>i.value);
+      emojiInput.value = autoEmojiForCategories(cats);
+    });
+  });
 
   overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
   overlay.querySelector('#cancelBtn').addEventListener('click', ()=>overlay.remove());
