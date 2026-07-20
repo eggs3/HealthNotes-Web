@@ -123,6 +123,34 @@
     border-radius:8px;
   }
   .tab.active .count{background:#EEF0EA;}
+  .rail-divider{
+    height:1px;
+    background:var(--line);
+    margin:10px 10px;
+    flex-shrink:0;
+  }
+  @media (max-width:760px){
+    .rail-divider{width:1px; height:auto; align-self:stretch; margin:0 4px;}
+  }
+  .provider-link{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    border:1px solid var(--accent-lab);
+    color:var(--accent-lab);
+    background:var(--card);
+    padding:6px 12px;
+    border-radius:6px;
+    cursor:pointer;
+    text-decoration:none;
+    display:inline-block;
+  }
+  .provider-link:hover{background:#F5F6F1;}
+  .providers-intro{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    margin-bottom:16px;
+    max-width:520px;
+  }
 
   /* ---------- Main ---------- */
   main{padding:28px 32px 100px 32px; max-width:760px;}
@@ -392,12 +420,15 @@
 <div class="app" id="appRoot" style="display:none;">
   <div class="rail" id="rail"></div>
   <main>
-    <div class="topbar">
-      <input class="search" id="searchInput" type="text" placeholder="Search notes, providers, tags…">
-      <div class="icon-btn" id="importBtn" title="Import / Export">⇅</div>
-      <button class="signout-btn" id="signOutBtn">Sign out</button>
+    <div id="entriesView">
+      <div class="topbar">
+        <input class="search" id="searchInput" type="text" placeholder="Search notes, providers, tags…">
+        <div class="icon-btn" id="importBtn" title="Import / Export">⇅</div>
+        <button class="signout-btn" id="signOutBtn">Sign out</button>
+      </div>
+      <div id="list"></div>
     </div>
-    <div id="list"></div>
+    <div id="providersView" style="display:none;"></div>
   </main>
 </div>
 
@@ -457,6 +488,24 @@ function autoEmojiForCategories(cats){
   return rule ? rule.emoji : '';
 }
 
+const PROVIDER_TYPES = [
+  {icon:'🏢', label:'Facility'},
+  {icon:'👨\u200d⚕️', label:'Doctor'},
+  {icon:'💊', label:'Pharmacy'},
+  {icon:'🧪', label:'Lab'},
+  {icon:'📍', label:'Other'},
+];
+
+// Seed providers, migrated from the provider names already present in the
+// user's existing entries — gives the Providers page a useful starting point.
+const SEED_PROVIDERS = [
+  {id:"p1", icon:"🏢", name:"NYC Health", url:"", notes:""},
+  {id:"p2", icon:"🏢", name:"EYES.NYC", url:"", notes:""},
+  {id:"p3", icon:"👨\u200d⚕️", name:"Dr. Park (Washington Square Dermatology)", url:"", notes:""},
+  {id:"p4", icon:"🏢", name:"PPDirect", url:"", notes:""},
+  {id:"p5", icon:"🏢", name:"209 NYC Dental", url:"", notes:""},
+];
+
 // Seed data migrated from the user's existing backup, used only if storage is empty.
 const SEED = [
   {id:"s1", emoji:"🧪", title:"STD panel", date:"2026-05-08", categories:["Appointment","Lab/Test Result"], tags:[], providerIcon:"🏢", providerName:"NYC Health", notes:["Negative for: chlamydia, gonorrhea, HIV, syphilis","Results shared via patient portal"], related:["STD panel"]},
@@ -483,6 +532,8 @@ const SEED = [
 ];
 
 let entries = [];
+let providers = [];
+let currentView = 'entries'; // 'entries' | 'providers'
 let activeCategory = 'All';
 let searchQuery = '';
 let expandedId = null;
@@ -504,14 +555,17 @@ async function loadEntries(){
     const snap = await getDoc(doc(db, 'healthnotes', currentUid));
     if(snap.exists() && snap.data().entries){
       entries = JSON.parse(snap.data().entries);
+      providers = snap.data().providers ? JSON.parse(snap.data().providers) : [];
     } else {
       entries = SEED;
+      providers = SEED_PROVIDERS;
       await saveEntries();
     }
   }catch(e){
     console.error('Load error', e);
     toast('Could not load your notes — check your connection');
     entries = [];
+    providers = [];
   }
   render();
 }
@@ -520,6 +574,7 @@ async function saveEntries(){
   try{
     await setDoc(doc(db, 'healthnotes', currentUid), {
       entries: JSON.stringify(entries),
+      providers: JSON.stringify(providers),
       updatedAt: new Date().toISOString()
     });
   }catch(e){
@@ -538,10 +593,21 @@ function renderRail(){
   CATEGORIES.forEach(c=>{
     html += tabHtml(c.name, c.color, counts[c.name]||0);
   });
+  html += `<div class="rail-divider"></div>`;
+  html += `<div class="tab ${currentView==='providers'?'active':''}" data-view="providers" style="--tab-color:#5B6560">
+    <span class="dot" style="background:#5B6560"></span>
+    <span>🩺 Providers</span>
+    <span class="count">${providers.length}</span>
+  </div>`;
   rail.innerHTML = html;
   rail.querySelectorAll('.tab').forEach(el=>{
     el.addEventListener('click', ()=>{
-      activeCategory = el.dataset.name;
+      if(el.dataset.view){
+        currentView = el.dataset.view;
+      } else {
+        currentView = 'entries';
+        activeCategory = el.dataset.name;
+      }
       render();
     });
   });
@@ -684,13 +750,142 @@ function escapeHtml(str){
 
 function render(){
   renderRail();
-  renderList();
+  const entriesViewEl = document.getElementById('entriesView');
+  const providersViewEl = document.getElementById('providersView');
+  if(currentView === 'providers'){
+    entriesViewEl.style.display = 'none';
+    providersViewEl.style.display = 'block';
+    renderProvidersView();
+  } else {
+    providersViewEl.style.display = 'none';
+    entriesViewEl.style.display = 'block';
+    renderList();
+  }
+  fabBtn.title = currentView === 'providers' ? 'Add provider' : 'Add entry';
+  fabBtn.onclick = () => currentView === 'providers' ? openProviderModal(null) : openModal(null);
+}
+
+// ---------- Providers ----------
+function renderProvidersView(){
+  const panel = document.getElementById('providersView');
+  const sorted = providers.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  let html = `<div class="providers-intro">Manage the doctors, facilities, pharmacies, and labs you deal with — save a portal link on each one for quick access. Tap + to add a provider.</div>`;
+  if(sorted.length === 0){
+    html += `<div class="empty">No providers yet. Tap + to add a doctor, facility, or pharmacy.</div>`;
+  } else {
+    html += sorted.map(p=>providerCardHtml(p)).join('');
+  }
+  panel.innerHTML = html;
+
+  panel.querySelectorAll('.provider-edit').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      openProviderModal(providers.find(p=>p.id===el.dataset.id));
+    });
+  });
+  panel.querySelectorAll('.provider-delete').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(confirm('Delete this provider? Past entries that reference it will keep their saved provider name, they just won\'t link back to this record anymore.')){
+        providers = providers.filter(p=>p.id!==el.dataset.id);
+        await saveEntries();
+        render();
+        toast('Provider deleted');
+      }
+    });
+  });
+}
+
+function providerCardHtml(p){
+  const urlBtn = p.url ? `<a class="provider-link" href="${escapeAttr(p.url)}" target="_blank" rel="noopener noreferrer">Open portal ↗</a>` : '';
+  return `<div class="entry">
+    <div class="entry-head">
+      <div class="emoji">${p.icon||'🏢'}</div>
+      <div class="entry-title-wrap">
+        <p class="entry-title">${escapeHtml(p.name)}</p>
+        ${p.notes ? `<div class="entry-meta">${escapeHtml(p.notes)}</div>` : ''}
+      </div>
+    </div>
+    <div class="entry-actions" style="margin-top:14px;">
+      ${urlBtn}
+      <button class="provider-edit" data-id="${p.id}">Edit</button>
+      <button class="provider-delete danger" data-id="${p.id}">Delete</button>
+    </div>
+  </div>`;
+}
+
+function openProviderModal(existing){
+  const isEdit = !!existing;
+  const p = existing || {id:null, icon:'🏢', name:'', url:'', notes:''};
+
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${isEdit? 'Edit provider' : 'New provider'}</h2>
+      <div class="row-2">
+        <div class="field">
+          <label>Type</label>
+          <select id="p-icon">
+            ${PROVIDER_TYPES.map(t=>`<option value="${t.icon}" ${p.icon===t.icon?'selected':''}>${t.icon} ${t.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="p-name" value="${escapeAttr(p.name)}" placeholder="e.g. Dr. Park">
+        </div>
+      </div>
+      <div class="field">
+        <label>Portal / website URL <span class="hint">(optional)</span></label>
+        <input type="text" id="p-url" value="${escapeAttr(p.url)}" placeholder="https://…">
+      </div>
+      <div class="field">
+        <label>Notes <span class="hint">(optional)</span></label>
+        <textarea id="p-notes" placeholder="e.g. patient portal login is by email">${escapeHtml(p.notes||'')}</textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancelPBtn">Cancel</button>
+        <button class="btn-primary" id="savePBtn">${isEdit?'Save changes':'Add provider'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  overlay.querySelector('#cancelPBtn').addEventListener('click', ()=>overlay.remove());
+  overlay.querySelector('#savePBtn').addEventListener('click', async ()=>{
+    const name = overlay.querySelector('#p-name').value.trim();
+    if(!name){ toast('Name is required'); return; }
+    let url = overlay.querySelector('#p-url').value.trim();
+    if(url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+    const newProvider = {
+      id: p.id || (crypto.randomUUID ? crypto.randomUUID() : 'pid'+Date.now()),
+      icon: overlay.querySelector('#p-icon').value,
+      name,
+      url,
+      notes: overlay.querySelector('#p-notes').value.trim(),
+    };
+
+    if(isEdit){
+      providers = providers.map(x=>x.id===p.id ? newProvider : x);
+    } else {
+      providers.push(newProvider);
+    }
+    await saveEntries();
+    overlay.remove();
+    render();
+    toast(isEdit ? 'Provider updated' : 'Provider added');
+  });
 }
 
 // ---------- Add / Edit modal ----------
 function openModal(existing){
   const isEdit = !!existing;
-  const e = existing || {id:null, emoji:'', title:'', date:new Date().toISOString().slice(0,10), categories:[], tags:[], providerIcon:'', providerName:'', notes:[], related:[]};
+  const e = existing || {id:null, emoji:'', title:'', date:new Date().toISOString().slice(0,10), categories:[], tags:[], providerId:'', providerIcon:'', providerName:'', notes:[], related:[]};
+  // Match legacy entries (saved before Providers existed) to a managed
+  // provider by exact name, so editing them offers to link up automatically.
+  const matchedProvider = e.providerId
+    ? providers.find(pr=>pr.id===e.providerId)
+    : providers.find(pr=>pr.name===e.providerName && e.providerName);
 
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
@@ -721,18 +916,25 @@ function openModal(existing){
             </label>`).join('')}
         </div>
       </div>
-      <div class="row-2">
+      <div class="field">
+        <label>Provider <span class="hint">(from your Providers list)</span></label>
+        <select id="f-provider">
+          <option value="" ${!matchedProvider?'selected':''}>— none / custom —</option>
+          ${providers.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(pr=>`
+            <option value="${pr.id}" ${matchedProvider && matchedProvider.id===pr.id?'selected':''}>${pr.icon} ${escapeAttr(pr.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="row-2" id="customProviderRow" style="${matchedProvider ? 'display:none;' : ''}">
         <div class="field">
           <label>Provider type</label>
           <select id="f-picon">
             <option value="" ${e.providerIcon===''?'selected':''}>— none —</option>
-            <option value="🏢" ${e.providerIcon==='🏢'?'selected':''}>🏢 Facility</option>
-            <option value="👨‍⚕️" ${e.providerIcon==='👨‍⚕️'?'selected':''}>👨‍⚕️ Doctor</option>
+            ${PROVIDER_TYPES.map(t=>`<option value="${t.icon}" ${e.providerIcon===t.icon?'selected':''}>${t.icon} ${t.label}</option>`).join('')}
           </select>
         </div>
         <div class="field">
-          <label>Provider name</label>
-          <input type="text" id="f-pname" value="${escapeAttr(e.providerName)}" placeholder="e.g. Dr. Park">
+          <label>Provider name <span class="hint">(one-off — add it to Providers to reuse)</span></label>
+          <input type="text" id="f-pname" value="${matchedProvider ? '' : escapeAttr(e.providerName)}" placeholder="e.g. Dr. Park">
         </div>
       </div>
       <div class="field">
@@ -773,6 +975,14 @@ function openModal(existing){
     });
   });
 
+  // Provider select: hide the "custom" name/type fields whenever a managed
+  // provider is chosen from the dropdown.
+  const providerSelect = overlay.querySelector('#f-provider');
+  const customProviderRow = overlay.querySelector('#customProviderRow');
+  providerSelect.addEventListener('change', ()=>{
+    customProviderRow.style.display = providerSelect.value ? 'none' : '';
+  });
+
   overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
   overlay.querySelector('#cancelBtn').addEventListener('click', ()=>overlay.remove());
   overlay.querySelector('#saveBtn').addEventListener('click', async ()=>{
@@ -783,6 +993,12 @@ function openModal(existing){
     const notes = overlay.querySelector('#f-notes').value.split('\n').map(n=>n.trim()).filter(Boolean);
     const related = [...overlay.querySelector('#f-related').selectedOptions].map(o=>o.value);
 
+    const chosenProviderId = overlay.querySelector('#f-provider').value;
+    const chosenProvider = chosenProviderId ? providers.find(pr=>pr.id===chosenProviderId) : null;
+    const providerId = chosenProvider ? chosenProvider.id : '';
+    const providerIcon = chosenProvider ? chosenProvider.icon : overlay.querySelector('#f-picon').value;
+    const providerName = chosenProvider ? chosenProvider.name : overlay.querySelector('#f-pname').value.trim();
+
     const newEntry = {
       id: e.id || (crypto.randomUUID ? crypto.randomUUID() : 'id'+Date.now()),
       emoji: overlay.querySelector('#f-emoji').value.trim() || '📝',
@@ -790,8 +1006,9 @@ function openModal(existing){
       date: overlay.querySelector('#f-date').value,
       categories: cats,
       tags,
-      providerIcon: overlay.querySelector('#f-picon').value,
-      providerName: overlay.querySelector('#f-pname').value.trim(),
+      providerId,
+      providerIcon,
+      providerName,
       notes,
       related,
     };
@@ -858,7 +1075,6 @@ function openImportExport(){
 }
 
 // ---------- Wiring ----------
-document.getElementById('addBtn').addEventListener('click', ()=>openModal(null));
 document.getElementById('importBtn').addEventListener('click', openImportExport);
 document.getElementById('searchInput').addEventListener('input', (ev)=>{
   searchQuery = ev.target.value;
