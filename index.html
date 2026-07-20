@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EEF0EA;
+    --card:#FFFFFF;
+    --ink:#232B28;
+    --ink-soft:#5B6560;
+    --line:#DDE1D8;
+    --accent-appointment:#5B7C99;
+    --accent-prescription:#B5763F;
+    --accent-lab:#3E6259;
+    --accent-symptoms:#B14A3D;
+    --accent-procedure:#7A5C7E;
+    --accent-vaccination:#6B8F71;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:#c9d6c2;}
+  .app{
+    display:grid;
+    grid-template-columns:220px 1fr;
+    min-height:100vh;
+  }
+  @media (max-width:760px){
+    .app{grid-template-columns:1fr;}
+  }
+
+  /* ---------- Sidebar / tab rail ---------- */
+  .rail{
+    border-right:1px solid var(--line);
+    padding:28px 14px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  @media (max-width:760px){
+    .rail{
+      border-right:none;
+      border-bottom:1px solid var(--line);
+      flex-direction:row;
+      overflow-x:auto;
+      padding:14px 12px;
+      gap:8px;
+    }
+  }
+  .brand{
+    font-family:'Source Serif 4',serif;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    margin:0 8px 20px 8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  @media (max-width:760px){ .brand{display:none;} }
+  .tab{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 12px;
+    border-radius:0 20px 20px 0;
+    border-left:4px solid transparent;
+    cursor:pointer;
+    color:var(--ink-soft);
+    font-size:14px;
+    font-weight:500;
+    white-space:nowrap;
+    transition:background .15s ease, color .15s ease;
+  }
+  @media (max-width:760px){
+    .tab{border-radius:20px; border-left:none; border-bottom:3px solid transparent; flex-shrink:0;}
+  }
+  .tab:hover{background:#E4E7DD;}
+  .tab.active{
+    background:var(--card);
+    color:var(--ink);
+    border-left-color:var(--tab-color, var(--ink));
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+  }
+  @media (max-width:760px){
+    .tab.active{border-left:none; border-bottom-color:var(--tab-color, var(--ink));}
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--tab-color,var(--ink-soft));flex-shrink:0;}
+  .count{
+    margin-left:auto;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    background:#E4E7DD;
+    padding:1px 6px;
+    border-radius:8px;
+  }
+  .tab.active .count{background:#EEF0EA;}
+
+  /* ---------- Main ---------- */
+  main{padding:28px 32px 100px 32px; max-width:760px;}
+  @media (max-width:760px){ main{padding:18px 16px 100px 16px;} }
+
+  .topbar{display:flex; gap:12px; align-items:center; margin-bottom:22px; flex-wrap:wrap;}
+  .search{
+    flex:1;
+    min-width:180px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:9px 14px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    color:var(--ink);
+  }
+  .search:focus{outline:none; border-color:var(--ink-soft);}
+  .icon-btn{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    font-size:16px;
+    flex-shrink:0;
+  }
+  .icon-btn:hover{background:#F5F6F1;}
+
+  .entry{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    margin-bottom:12px;
+    padding:16px 18px;
+    cursor:pointer;
+    transition:box-shadow .15s ease;
+  }
+  .entry:hover{box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+  .entry-head{display:flex; align-items:flex-start; gap:12px;}
+  .emoji{font-size:22px; line-height:1.3;}
+  .entry-title-wrap{flex:1; min-width:0;}
+  .entry-title{
+    font-family:'Source Serif 4',serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 3px 0;
+  }
+  .entry-meta{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 10px;
+    align-items:center;
+  }
+  .entry-meta .date{font-family:'JetBrains Mono',monospace;}
+  .cat-pill{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:20px;
+    color:#fff;
+    font-weight:500;
+  }
+  .tag-pill{
+    font-size:11.5px;
+    color:var(--ink-soft);
+  }
+  .chevron{color:var(--ink-soft); font-size:13px; margin-left:auto; padding-top:3px; flex-shrink:0;}
+
+  .entry-body{
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px dashed var(--line);
+  }
+  .entry-body ul{margin:0 0 10px 0; padding-left:20px;}
+  .entry-body li{margin-bottom:5px; font-size:14px; line-height:1.5;}
+  .related-wrap{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  .related-pill{
+    font-size:12px;
+    background:#EEF0EA;
+    border:1px solid var(--line);
+    padding:3px 10px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .related-pill:hover{background:#E4E7DD;}
+  .entry-actions{display:flex; gap:8px; margin-top:14px;}
+  .entry-actions button{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    border:1px solid var(--line);
+    background:var(--card);
+    padding:6px 12px;
+    border-radius:6px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .entry-actions button:hover{background:#F5F6F1;}
+  .entry-actions .danger{color:var(--accent-symptoms); border-color:var(--accent-symptoms);}
+
+  .empty{
+    text-align:center;
+    color:var(--ink-soft);
+    padding:60px 20px;
+    font-size:14px;
+  }
+
+  .fab{
+    position:fixed;
+    bottom:28px; right:28px;
+    width:54px; height:54px;
+    border-radius:50%;
+    background:var(--ink);
+    color:#fff;
+    font-size:26px;
+    border:none;
+    cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center;
+    z-index:20;
+  }
+  .fab:hover{background:#3a453f;}
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(35,43,40,0.45);
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    z-index:50;
+  }
+  .modal{
+    background:var(--card);
+    border-radius:14px;
+    padding:26px;
+    width:100%;
+    max-width:520px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);
+  }
+  .modal h2{
+    font-family:'Source Serif 4',serif;
+    margin:0 0 18px 0;
+    font-size:20px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:600;
+    margin-bottom:5px;
+    color:var(--ink-soft);
+  }
+  .field input[type=text], .field input[type=date], .field textarea, .field select{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:8px 11px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .field textarea{min-height:80px; resize:vertical;}
+  .row-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .chip-check{
+    display:inline-flex; align-items:center; gap:6px;
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:5px 12px;
+    font-size:13px;
+    cursor:pointer;
+    margin:0 6px 6px 0;
+  }
+  .chip-check input{margin:0;}
+  .chip-row{display:flex; flex-wrap:wrap;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  .btn-primary{
+    background:var(--ink); color:#fff; border:none;
+    padding:9px 18px; border-radius:8px; font-size:14px; cursor:pointer;
+    font-family:'Inter',sans-serif; font-weight:500;
+  }
+  .btn-secondary{
+    background:transparent; color:var(--ink-soft); border:1px solid var(--line);
+    padding:9px 18px; border-radius:8px; font-size:14px; cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .hint{font-size:12px; color:var(--ink-soft); margin-top:4px;}
+  .flash{animation:flash 1.1s ease;}
+  @keyframes flash{
+    0%{background:#FFF7DE;} 100%{background:var(--card);}
+  }
+  .toast{
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 20px; border-radius:8px;
+    font-size:13.5px; z-index:100; opacity:0; pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .toast.show{opacity:1;}
+
+  /* ---------- Login gate ---------- */
+  .login-screen{
+    min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .login-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:32px;
+    width:100%;
+    max-width:360px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.08);
+  }
+  .login-card h1{
+    font-family:'Source Serif 4',serif;
+    font-size:24px;
+    margin:0 0 4px 0;
+  }
+  .login-card p.sub{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    margin:0 0 20px 0;
+  }
+  .login-error{
+    color:var(--accent-symptoms);
+    font-size:13px;
+    margin-top:10px;
+    display:none;
+  }
+  .login-error.show{display:block;}
+  .login-actions{display:flex; gap:10px; margin-top:16px;}
+  .login-actions button{flex:1;}
+  .signout-btn{
+    font-size:12px;
+    color:var(--ink-soft);
+    background:none; border:none; cursor:pointer;
+    text-decoration:underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>🗂️ Health Notes</h1>
+    <p class="sub">Sign in to sync your notes across every device. First time here? Use "Create account" with any email and password, no verification needed.</p>
+    <div class="field">
+      <label>Email</label>
+      <input type="text" id="loginEmail" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="At least 6 characters">
+    </div>
+    <div class="login-actions">
+      <button class="btn-secondary" id="createAccountBtn">Create account</button>
+      <button class="btn-primary" id="signInBtn">Sign in</button>
+    </div>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+  <div class="rail" id="rail"></div>
+  <main>
+    <div class="topbar">
+      <input class="search" id="searchInput" type="text" placeholder="Search notes, providers, tags…">
+      <div class="icon-btn" id="importBtn" title="Import / Export">⇅</div>
+      <button class="signout-btn" id="signOutBtn">Sign out</button>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<button class="fab" id="addBtn" title="Add entry" style="display:none;">+</button>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ↓↓↓ Paste your six values from Firebase console → Project settings → Your apps ↓↓↓
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY_HERE",
+  authDomain: "PASTE_YOUR_AUTH_DOMAIN_HERE",
+  projectId: "PASTE_YOUR_PROJECT_ID_HERE",
+  storageBucket: "PASTE_YOUR_STORAGE_BUCKET_HERE",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID_HERE",
+  appId: "PASTE_YOUR_APP_ID_HERE"
+};
+// ↑↑↑ ---------------------------------------------------------------------- ↑↑↑
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+let currentUid = null;
+
+const CATEGORIES = [
+  {name:'Appointment', color:'var(--accent-appointment)', hex:'#5B7C99'},
+  {name:'Prescription', color:'var(--accent-prescription)', hex:'#B5763F'},
+  {name:'Lab/Test Result', color:'var(--accent-lab)', hex:'#3E6259'},
+  {name:'Symptoms', color:'var(--accent-symptoms)', hex:'#B14A3D'},
+  {name:'Procedure', color:'var(--accent-procedure)', hex:'#7A5C7E'},
+  {name:'Vaccination', color:'var(--accent-vaccination)', hex:'#6B8F71'},
+];
+const STORAGE_KEY = 'entries';
+
+// Seed data migrated from the user's existing backup, used only if storage is empty.
+const SEED = [
+  {id:"s1", emoji:"🧪", title:"STD panel", date:"2026-05-08", categories:["Appointment","Lab/Test Result"], tags:[], providerIcon:"🏢", providerName:"NYC Health", notes:["Negative for: chlamydia, gonorrhea, HIV, syphilis","Results shared via patient portal"], related:["STD panel"]},
+  {id:"s2", emoji:"👓", title:"Optometrist appointment", date:"2026-04-29", categories:["Appointment"], tags:["optometrist"], providerIcon:"🏢", providerName:"EYES.NYC", notes:["Visited Eyes.NYC to update glasses and contacts prescription","Increased prescription in left eye","When I return, should let them know if I want to switch to new cheaper contacts brand they gave me to test"], related:[]},
+  {id:"s3", emoji:"💊", title:"Prescribed tretinoin for acne", date:"2026-03-23", categories:["Prescription"], tags:["acne"], providerIcon:"👨‍⚕️", providerName:"Dr. Park (Washington Square Dermatology)", notes:["Prescribed tretinoin 0.025% topical cream for acne by Washington Square Dermatology in addition to spiro"], related:["Spironolactone for acne"]},
+  {id:"s4", emoji:"🤒", title:"UTI symptoms", date:"2026-01-14", categories:["Symptoms"], tags:["UTI"], providerIcon:"", providerName:"", notes:["Noticed early signs of UTI"], related:["UTI antibiotics (worked well, 5 days)"]},
+  {id:"s5", emoji:"💊", title:"UTI antibiotics (worked well, 5 days)", date:"2026-01-14", categories:["Prescription"], tags:["UTI"], providerIcon:"🏢", providerName:"PPDirect", notes:["Prescribed Nitrofurantoin NI 100MG cap oral capsules for UTI symptoms by Planned Parenthood Direct app","Fulfilled at Chelsea Royal Care Pharmacy","5-day 1x daily course","Worked well","Medication cost $5.93"], related:["UTI symptoms"]},
+  {id:"s6", emoji:"💊", title:"Spironolactone for acne", date:"2025-11-10", categories:["Appointment","Prescription"], tags:["acne"], providerIcon:"👨‍⚕️", providerName:"Dr. Park (Washington Square Dermatology)", notes:["Prescribed Spironolactone 50mg tablets by Washington Square Dermatology for hormonal acne","Should see results within 3-4 months (March 9 2026)","Start by taking 1x daily PM for two weeks, then increase to 2x daily (AM/PM)","Most common side effect is thirstiness/dehydration; be sure to drink increased water","Six-week check-up scheduled for December 19 2025","Treatment lasts indefinitely","Fulfilled at Marino Pharmacy","Medication cost $22.50"], related:["Prescribed tretinoin for acne"]},
+  {id:"s7", emoji:"🦷", title:"Dentist", date:"2025-10-19", categories:["Appointment"], tags:["dental"], providerIcon:"🏢", providerName:"209 NYC Dental", notes:["Visited 209 NYC Dental for annual tooth cleaning"], related:[]},
+  {id:"s8", emoji:"💉", title:"Covid vaccine", date:"2025-10-19", categories:["Vaccination"], tags:[], providerIcon:"", providerName:"", notes:["Received Covid shot at CVS"], related:[]},
+  {id:"s9", emoji:"💉", title:"Flu shot", date:"2025-09-25", categories:["Vaccination"], tags:[], providerIcon:"", providerName:"", notes:["Received flu shot via employer"], related:[]},
+  {id:"s10", emoji:"💊", title:"UTI antibiotics (worked well, 7 days)", date:"2025-09-24", categories:["Prescription"], tags:["UTI"], providerIcon:"🏢", providerName:"PPDirect", notes:["Prescribed Macrobid nitrofurantoin 100mg oral capsules for UTI symptoms by Planned Parenthood Direct app","Fulfilled at Chelsea Royal Care Pharmacy","7-day 2x daily course","Worked well","Medication cost $17.01"], related:["UTI symptoms"]},
+  {id:"s11", emoji:"🤒", title:"UTI symptoms", date:"2025-09-23", categories:["Symptoms","Appointment"], tags:["UTI"], providerIcon:"🏢", providerName:"PPDirect", notes:["Noticed UTI symptoms (discomfort while peeing)","Planned Parenthood Direct virtual appointment cost $30.00"], related:["UTI antibiotics (worked well, 7 days)"]},
+  {id:"s12", emoji:"🤒", title:"Bad UTI (went to ER)", date:"2025-07-18", categories:["Appointment","Prescription","Symptoms"], tags:["UTI"], providerIcon:"🏢", providerName:"CityMD Chelsea", notes:["Visited CityMD Chelsea for UTI symptoms","Appointment cost $40.00","Prescribed ciprofloxacin 500 mg tablet 1x daily 7-day course at CVS","Ended up going to emergency room for kidney/back pain","Advised to stay on already prescribed course of antibiotics"], related:[]},
+  {id:"s13", emoji:"🧪", title:"STD panel", date:"2025-04-21", categories:["Lab/Test Result"], tags:[], providerIcon:"🏢", providerName:"NYC Health", notes:["Free NYC gov STD panel at clinic in Chelsea","Negative for: chlamydia, gonorrhea, HIV, syphilis"], related:["STD panel"]},
+  {id:"s14", emoji:"🛏️", title:"Cyst removal", date:"2024-12-09", categories:["Appointment","Procedure"], tags:[], providerIcon:"🏢", providerName:"The Dermatology Specialists", notes:["Visited The Dermatology Specialists Union Square (Dr. Daniella Azizi) for cyst","Numbed and drained cyst","I also think I remember them sending me home with some kind of pain relief"], related:[]},
+  {id:"s15", emoji:"📅", title:"Annual check-up/physical", date:"2024-10-21", categories:["Appointment"], tags:["check-up"], providerIcon:"👨‍⚕️", providerName:"Dr. Pearl Lui (City Care Family Practice)", notes:["Visited City Care Family Practice (Dr. Pearl Lui) to receive annual check-up","Got a fine vibe from Dr. Pearl Lui but didn't love"], related:[]},
+  {id:"s16", emoji:"💊", title:"Allergic reaction to UTI meds", date:"2024-10-04", categories:["Prescription","Appointment","Symptoms"], tags:["allergy"], providerIcon:"🏢", providerName:"ModernMD Knickerbocker", notes:["Returned to ModernMD Knickerbocker due to hives reaction to UTI antibiotic (augmentin)","Prescribed predniSONE 20 MG tablet 5-day course of steroids and Benadryl Allergy 25 MG tablet at Walgreens"], related:[]},
+  {id:"s17", emoji:"📅", title:"UTI appointment", date:"2024-10-01", categories:["Appointment","Symptoms","Prescription"], tags:["UTI"], providerIcon:"🏢", providerName:"ModernMD Knickerbocker", notes:["Visited ModernMD Knickerbocker for UTI symptoms","Already was taking Amoxicillin-Pot Clavulanate 500-125 MG tablet (augmentin) 5-day course from GoodRx","Advised that I should seek testing for possible penicillin allergy in the future"], related:[]},
+  {id:"s18", emoji:"🤒", title:"UTI treatment", date:"2024-09-24", categories:["Prescription"], tags:["UTI"], providerIcon:"🏢", providerName:"GoodRX", notes:["Prescribed Augmentin 500/125 mg tablet for UTI symptoms via GoodRx","Details: Amoxicillin-Pot Clavulanate 500-125 MG","Pharmacy: Walgreens Drug Store #01214","Drug cost $12.60"], related:[]},
+  {id:"s19", emoji:"📅", title:"First UTI", date:"2024-07-25", categories:["Prescription","Appointment","Symptoms"], tags:["UTI"], providerIcon:"🏢", providerName:"CityMD Bushwick", notes:["Visited CityMD Bushwick for UTI symptoms","Prescribed Macrobid nitrofurantoin 100mg capsule for UTI symptoms","First UTI"], related:[]},
+  {id:"s20", emoji:"🧪", title:"STD panel", date:"2022-09-12", categories:["Lab/Test Result"], tags:[], providerIcon:"", providerName:"", notes:["Tested negative for chlamydia and gonorrhea"], related:["STD panel"]},
+  {id:"s21", emoji:"🛏️", title:"IUD", date:"2017-06-30", categories:["Procedure","Appointment"], tags:["birth control"], providerIcon:"", providerName:"", notes:["Copper IUD implanted, expires after 10 years (2027)"], related:[]},
+];
+
+let entries = [];
+let activeCategory = 'All';
+let searchQuery = '';
+let expandedId = null;
+
+function catColor(name){
+  const c = CATEGORIES.find(c=>c.name===name);
+  return c ? c.hex : '#5B6560';
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+async function loadEntries(){
+  try{
+    const snap = await getDoc(doc(db, 'healthnotes', currentUid));
+    if(snap.exists() && snap.data().entries){
+      entries = JSON.parse(snap.data().entries);
+    } else {
+      entries = SEED;
+      await saveEntries();
+    }
+  }catch(e){
+    console.error('Load error', e);
+    toast('Could not load your notes — check your connection');
+    entries = [];
+  }
+  render();
+}
+
+async function saveEntries(){
+  try{
+    await setDoc(doc(db, 'healthnotes', currentUid), {
+      entries: JSON.stringify(entries),
+      updatedAt: new Date().toISOString()
+    });
+  }catch(e){
+    console.error('Save error', e);
+    toast('Could not save — check your connection');
+  }
+}
+
+function renderRail(){
+  const rail = document.getElementById('rail');
+  const counts = {};
+  CATEGORIES.forEach(c=>counts[c.name]=0);
+  entries.forEach(e=> (e.categories||[]).forEach(c=> counts[c] = (counts[c]||0)+1 ));
+  let html = `<div class="brand">🗂️ Health Notes</div>`;
+  html += tabHtml('All', 'var(--ink)', entries.length);
+  CATEGORIES.forEach(c=>{
+    html += tabHtml(c.name, c.color, counts[c.name]||0);
+  });
+  rail.innerHTML = html;
+  rail.querySelectorAll('.tab').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      activeCategory = el.dataset.name;
+      render();
+    });
+  });
+}
+
+function tabHtml(name, color, count){
+  const active = activeCategory === name;
+  return `<div class="tab ${active?'active':''}" data-name="${name}" style="--tab-color:${color}">
+    <span class="dot" style="background:${color}"></span>
+    <span>${name}</span>
+    <span class="count">${count}</span>
+  </div>`;
+}
+
+function filteredEntries(){
+  let list = entries.slice();
+  if(activeCategory !== 'All'){
+    list = list.filter(e => (e.categories||[]).includes(activeCategory));
+  }
+  if(searchQuery.trim()){
+    const q = searchQuery.trim().toLowerCase();
+    list = list.filter(e=>{
+      const hay = [e.title, e.providerName, ...(e.tags||[]), ...(e.notes||[])].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  list.sort((a,b)=> b.date.localeCompare(a.date));
+  return list;
+}
+
+function findByTitle(title, excludeId){
+  return entries.filter(e => e.title.toLowerCase() === title.toLowerCase() && e.id !== excludeId);
+}
+
+function formatDate(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'});
+}
+
+function renderList(){
+  const list = document.getElementById('list');
+  const items = filteredEntries();
+  if(items.length === 0){
+    list.innerHTML = `<div class="empty">No entries here yet. Tap + to log something.</div>`;
+    return;
+  }
+  list.innerHTML = items.map(e => entryHtml(e)).join('');
+
+  list.querySelectorAll('.entry').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      if(ev.target.closest('button') || ev.target.closest('.related-pill')) return;
+      expandedId = expandedId === el.dataset.id ? null : el.dataset.id;
+      renderList();
+    });
+  });
+  list.querySelectorAll('.related-pill').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const id = el.dataset.jump;
+      expandedId = id;
+      renderList();
+      setTimeout(()=>{
+        const target = document.querySelector(`.entry[data-id="${id}"]`);
+        if(target){
+          target.scrollIntoView({behavior:'smooth', block:'center'});
+          target.classList.add('flash');
+          setTimeout(()=>target.classList.remove('flash'), 1100);
+        }
+      }, 30);
+    });
+  });
+  list.querySelectorAll('.edit-btn').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      openModal(entries.find(e=>e.id===el.dataset.id));
+    });
+  });
+  list.querySelectorAll('.delete-btn').forEach(el=>{
+    el.addEventListener('click', async (ev)=>{
+      ev.stopPropagation();
+      if(confirm('Delete this entry? This cannot be undone.')){
+        entries = entries.filter(e=>e.id!==el.dataset.id);
+        await saveEntries();
+        render();
+        toast('Entry deleted');
+      }
+    });
+  });
+}
+
+function entryHtml(e){
+  const expanded = expandedId === e.id;
+  const catPills = (e.categories||[]).map(c=>`<span class="cat-pill" style="background:${catColor(c)}">${c}</span>`).join('');
+  const tagPills = (e.tags||[]).map(t=>`<span class="tag-pill">#${t}</span>`).join(' ');
+  const providerLine = e.providerName ? `<span>${e.providerIcon||''} ${e.providerName}</span>` : '';
+
+  let body = '';
+  if(expanded){
+    const notesHtml = (e.notes||[]).map(n=>`<li>${escapeHtml(n)}</li>`).join('');
+    const relatedTitles = [...new Set(e.related||[])];
+    let relatedHtml = '';
+    relatedTitles.forEach(title=>{
+      findByTitle(title, e.id).forEach(match=>{
+        relatedHtml += `<span class="related-pill" data-jump="${match.id}">${match.emoji} ${match.title} · ${formatDate(match.date)}</span>`;
+      });
+    });
+    body = `<div class="entry-body">
+      <ul>${notesHtml}</ul>
+      ${relatedHtml ? `<div class="related-wrap">${relatedHtml}</div>` : ''}
+      <div class="entry-actions">
+        <button class="edit-btn" data-id="${e.id}">Edit</button>
+        <button class="delete-btn danger" data-id="${e.id}">Delete</button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="entry" data-id="${e.id}">
+    <div class="entry-head">
+      <div class="emoji">${e.emoji||'📝'}</div>
+      <div class="entry-title-wrap">
+        <p class="entry-title">${escapeHtml(e.title)}</p>
+        <div class="entry-meta">
+          <span class="date">${formatDate(e.date)}</span>
+          ${catPills}
+          ${tagPills}
+          ${providerLine}
+        </div>
+      </div>
+      <div class="chevron">${expanded?'▲':'▼'}</div>
+    </div>
+    ${body}
+  </div>`;
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function render(){
+  renderRail();
+  renderList();
+}
+
+// ---------- Add / Edit modal ----------
+function openModal(existing){
+  const isEdit = !!existing;
+  const e = existing || {id:null, emoji:'', title:'', date:new Date().toISOString().slice(0,10), categories:[], tags:[], providerIcon:'', providerName:'', notes:[], related:[]};
+
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${isEdit? 'Edit entry' : 'New entry'}</h2>
+      <div class="row-2">
+        <div class="field">
+          <label>Emoji</label>
+          <input type="text" id="f-emoji" value="${e.emoji}" maxlength="4" placeholder="📝">
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="f-date" value="${e.date}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="f-title" value="${escapeAttr(e.title)}" placeholder="e.g. Annual check-up">
+      </div>
+      <div class="field">
+        <label>Categories</label>
+        <div class="chip-row">
+          ${CATEGORIES.map(c=>`
+            <label class="chip-check">
+              <input type="checkbox" value="${c.name}" ${e.categories.includes(c.name)?'checked':''}>
+              ${c.name}
+            </label>`).join('')}
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>Provider type</label>
+          <select id="f-picon">
+            <option value="" ${e.providerIcon===''?'selected':''}>— none —</option>
+            <option value="🏢" ${e.providerIcon==='🏢'?'selected':''}>🏢 Facility</option>
+            <option value="👨‍⚕️" ${e.providerIcon==='👨‍⚕️'?'selected':''}>👨‍⚕️ Doctor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Provider name</label>
+          <input type="text" id="f-pname" value="${escapeAttr(e.providerName)}" placeholder="e.g. Dr. Park">
+        </div>
+      </div>
+      <div class="field">
+        <label>Tags <span class="hint">(comma separated, no #)</span></label>
+        <input type="text" id="f-tags" value="${e.tags.join(', ')}" placeholder="UTI, allergy">
+      </div>
+      <div class="field">
+        <label>Notes <span class="hint">(one per line)</span></label>
+        <textarea id="f-notes">${e.notes.join('\n')}</textarea>
+      </div>
+      <div class="field">
+        <label>Related entries</label>
+        <select id="f-related" multiple size="4">
+          ${[...new Set(entries.map(x=>x.title))].filter(t=>t!==e.title || isEdit).map(t=>`
+            <option value="${escapeAttr(t)}" ${e.related.includes(t)?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <div class="hint">Cmd/Ctrl-click to select multiple</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn-primary" id="saveBtn">${isEdit?'Save changes':'Add entry'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  overlay.querySelector('#cancelBtn').addEventListener('click', ()=>overlay.remove());
+  overlay.querySelector('#saveBtn').addEventListener('click', async ()=>{
+    const title = overlay.querySelector('#f-title').value.trim();
+    if(!title){ toast('Title is required'); return; }
+    const cats = [...overlay.querySelectorAll('.chip-check input:checked')].map(i=>i.value);
+    const tags = overlay.querySelector('#f-tags').value.split(',').map(t=>t.trim().replace(/^#/,'')).filter(Boolean);
+    const notes = overlay.querySelector('#f-notes').value.split('\n').map(n=>n.trim()).filter(Boolean);
+    const related = [...overlay.querySelector('#f-related').selectedOptions].map(o=>o.value);
+
+    const newEntry = {
+      id: e.id || (crypto.randomUUID ? crypto.randomUUID() : 'id'+Date.now()),
+      emoji: overlay.querySelector('#f-emoji').value.trim() || '📝',
+      title,
+      date: overlay.querySelector('#f-date').value,
+      categories: cats,
+      tags,
+      providerIcon: overlay.querySelector('#f-picon').value,
+      providerName: overlay.querySelector('#f-pname').value.trim(),
+      notes,
+      related,
+    };
+
+    if(isEdit){
+      entries = entries.map(x=>x.id===e.id ? newEntry : x);
+    } else {
+      entries.push(newEntry);
+    }
+    await saveEntries();
+    overlay.remove();
+    render();
+    toast(isEdit ? 'Entry updated' : 'Entry added');
+  });
+}
+
+function escapeAttr(str){
+  return (str||'').replace(/"/g,'&quot;');
+}
+
+// ---------- Import / Export ----------
+function openImportExport(){
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Import / Export</h2>
+      <div class="field">
+        <label>Export (JSON) <span class="hint">— select all, copy, and save somewhere safe as a backup</span></label>
+        <textarea id="exportBox" style="min-height:140px; font-family:'JetBrains Mono',monospace; font-size:12px;" readonly>${JSON.stringify(entries, null, 2)}</textarea>
+      </div>
+      <div class="field">
+        <label>Import (JSON) <span class="hint">— paste an exported JSON array below. This adds to, not replaces, your existing entries.</span></label>
+        <textarea id="importBox" placeholder="[ { &quot;title&quot;: ... } ]"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="closeIE">Close</button>
+        <button class="btn-primary" id="doImport">Import entries</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  overlay.querySelector('#closeIE').addEventListener('click', ()=>overlay.remove());
+  overlay.querySelector('#exportBox').addEventListener('click', (ev)=>ev.target.select());
+  overlay.querySelector('#doImport').addEventListener('click', async ()=>{
+    const raw = overlay.querySelector('#importBox').value.trim();
+    if(!raw) return;
+    try{
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) throw new Error('not an array');
+      parsed.forEach(p=>{
+        p.id = crypto.randomUUID ? crypto.randomUUID() : 'id'+Date.now()+Math.random();
+        entries.push(p);
+      });
+      await saveEntries();
+      overlay.remove();
+      render();
+      toast(`Imported ${parsed.length} entries`);
+    }catch(e){
+      toast('Could not parse that JSON');
+    }
+  });
+}
+
+// ---------- Wiring ----------
+document.getElementById('addBtn').addEventListener('click', ()=>openModal(null));
+document.getElementById('importBtn').addEventListener('click', openImportExport);
+document.getElementById('searchInput').addEventListener('input', (ev)=>{
+  searchQuery = ev.target.value;
+  renderList();
+});
+
+// ---------- Auth ----------
+const loginScreen = document.getElementById('loginScreen');
+const appRoot = document.getElementById('appRoot');
+const fabBtn = document.getElementById('addBtn');
+const loginError = document.getElementById('loginError');
+
+function showLoginError(msg){
+  loginError.textContent = msg;
+  loginError.classList.add('show');
+}
+
+document.getElementById('signInBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPassword').value;
+  loginError.classList.remove('show');
+  try{
+    await signInWithEmailAndPassword(auth, email, pw);
+  }catch(e){
+    showLoginError(e.message.replace('Firebase: ','').replace(/\(auth\/.*\)\.?/,'').trim());
+  }
+});
+
+document.getElementById('createAccountBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPassword').value;
+  loginError.classList.remove('show');
+  try{
+    await createUserWithEmailAndPassword(auth, email, pw);
+  }catch(e){
+    showLoginError(e.message.replace('Firebase: ','').replace(/\(auth\/.*\)\.?/,'').trim());
+  }
+});
+
+document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+  await signOut(auth);
+});
+
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    currentUid = user.uid;
+    loginScreen.style.display = 'none';
+    appRoot.style.display = 'grid';
+    fabBtn.style.display = 'flex';
+    await loadEntries();
+  } else {
+    currentUid = null;
+    loginScreen.style.display = 'flex';
+    appRoot.style.display = 'none';
+    fabBtn.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
