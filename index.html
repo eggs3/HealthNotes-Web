@@ -849,7 +849,8 @@ function openProviderModal(existing){
   `;
   document.body.appendChild(overlay);
 
-  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  // Backdrop click intentionally does NOT close this modal — accidental taps
+  // outside the form shouldn't discard in-progress edits. Use Cancel/Close.
   overlay.querySelector('#cancelPBtn').addEventListener('click', ()=>overlay.remove());
   overlay.querySelector('#savePBtn').addEventListener('click', async ()=>{
     const name = overlay.querySelector('#p-name').value.trim();
@@ -983,7 +984,8 @@ function openModal(existing){
     customProviderRow.style.display = providerSelect.value ? 'none' : '';
   });
 
-  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  // Backdrop click intentionally does NOT close this modal — accidental taps
+  // outside the form shouldn't discard in-progress edits. Use Cancel/Close.
   overlay.querySelector('#cancelBtn').addEventListener('click', ()=>overlay.remove());
   overlay.querySelector('#saveBtn').addEventListener('click', async ()=>{
     const title = overlay.querySelector('#f-title').value.trim();
@@ -1051,7 +1053,8 @@ function openImportExport(){
     </div>
   `;
   document.body.appendChild(overlay);
-  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  // Backdrop click intentionally does NOT close this modal — accidental taps
+  // outside the form shouldn't discard in-progress edits. Use Cancel/Close.
   overlay.querySelector('#closeIE').addEventListener('click', ()=>overlay.remove());
   overlay.querySelector('#exportBox').addEventListener('click', (ev)=>ev.target.select());
   overlay.querySelector('#doImport').addEventListener('click', async ()=>{
