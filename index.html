@@ -836,7 +836,7 @@ document.getElementById('signInBtn').addEventListener('click', async ()=>{
   try{
     await signInWithEmailAndPassword(auth, email, pw);
   }catch(e){
-    showLoginError(e.message.replace('Firebase: ','').replace(/\(auth\/.*\)\.?/,'').trim());
+    showLoginError(friendlyAuthError(e));
   }
 });
 
@@ -847,9 +847,24 @@ document.getElementById('createAccountBtn').addEventListener('click', async ()=>
   try{
     await createUserWithEmailAndPassword(auth, email, pw);
   }catch(e){
-    showLoginError(e.message.replace('Firebase: ','').replace(/\(auth\/.*\)\.?/,'').trim());
+    showLoginError(friendlyAuthError(e));
   }
 });
+
+function friendlyAuthError(e){
+  const code = (e && e.code) ? e.code.replace('auth/','') : '';
+  const map = {
+    'unauthorized-domain': "This site's domain isn't authorized in Firebase yet. Add it under Authentication → Settings → Authorized domains.",
+    'email-already-in-use': "That email already has an account, try Sign in instead.",
+    'invalid-email': "That doesn't look like a valid email address.",
+    'weak-password': "Password needs to be at least 6 characters.",
+    'wrong-password': "Incorrect password.",
+    'user-not-found': "No account found with that email, try Create account.",
+    'invalid-credential': "Incorrect email or password.",
+    'operation-not-allowed': "Email/Password sign-in isn't enabled yet. Turn it on under Authentication → Sign-in method.",
+  };
+  return map[code] || (code ? code.replaceAll('-', ' ') : (e && e.message) || 'Something went wrong.');
+}
 
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
   await signOut(auth);
